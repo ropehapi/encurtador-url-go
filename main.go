@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/ropehapi/encurtador-url-go/config"
 	"github.com/ropehapi/encurtador-url-go/model"
 )
 
@@ -24,7 +26,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/encurta", Encurta).Methods("POST")
-	r.HandleFunc("/desencurta", Desencurta).Methods("GET")
+	r.HandleFunc("/desencurta/{code}", Desencurta).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8000", r))
 }
@@ -41,7 +43,8 @@ func Encurta(w http.ResponseWriter, r *http.Request) {
 
 	err := relation.Store()
 	if err != nil {
-		panic(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err.Error())
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -49,5 +52,24 @@ func Encurta(w http.ResponseWriter, r *http.Request) {
 }
 
 func Desencurta(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	code := vars["code"]
 
+	db := config.GetConexao()
+	defer db.Close()
+
+	res, err := db.Query(fmt.Sprintf("SELECT url FROM relation WHERE code = '%s'", code))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err.Error())
+	}
+
+	var url string
+	res.Next()
+	res.Scan(&url)
+	if err := res.Scan(&url); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err.Error())
+	}
+	http.Redirect(w, r, url, http.StatusSeeOther)
 }
