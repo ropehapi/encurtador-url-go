@@ -68,8 +68,8 @@ func Desencurta(w http.ResponseWriter, r *http.Request) {
 	res.Next()
 	res.Scan(&url)
 	if err := res.Scan(&url); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode("Code not found")
 	}
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
