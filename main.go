@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -58,18 +57,21 @@ func Desencurta(w http.ResponseWriter, r *http.Request) {
 	db := config.GetConexao()
 	defer db.Close()
 
-	res, err := db.Query(fmt.Sprintf("SELECT url FROM relation WHERE code = '%s'", code))
+	stmt, err := db.Prepare("SELECT url FROM relation WHERE code = ?")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(err.Error())
+		return
 	}
+	defer stmt.Close()
 
 	var url string
-	res.Next()
-	res.Scan(&url)
-	if err := res.Scan(&url); err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode("Code not found")
+	err = stmt.QueryRow(code).Scan(&url)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err.Error())
+		return
 	}
+
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
